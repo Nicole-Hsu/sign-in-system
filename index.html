@@ -384,15 +384,32 @@ async function submitForm() {
   records.push(record);
   localStorage.setItem('signins', JSON.stringify(records));
 
-  // 上線後：送到 Google Apps Script
+  // 上線後：送到 Google Apps Script（使用隱藏 iframe 表單，避免轉址問題）
   if (CONFIG.scriptUrl) {
     try {
-      await fetch(CONFIG.scriptUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify(record),
-      });
-    } catch(e) { console.warn('送出失敗，已儲存於本機', e); }
+      // 建立隱藏 iframe（接收回應用，畫面不跳頁）
+      let iframe = document.getElementById('_hiddenFrame');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = '_hiddenFrame';
+        iframe.name = '_hiddenFrame';
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+      }
+      // 建立隱藏表單
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = CONFIG.scriptUrl;
+      form.target = '_hiddenFrame';
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'data';
+      input.value = JSON.stringify(record);
+      form.appendChild(input);
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    } catch(err) { console.warn('送出失敗，已儲存於本機', err); }
   }
 
   showSuccess(record.name);
