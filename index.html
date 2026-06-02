@@ -384,19 +384,31 @@ async function submitForm() {
   records.push(record);
   localStorage.setItem('signins', JSON.stringify(records));
 
-  // 送到 Google Apps Script（GET + Image 技巧，完全不受 CORS／轉址限制）
+  // 送到 Google Apps Script（隱藏 iframe 表單 POST，支援簽名上傳 Google Drive）
   if (CONFIG.scriptUrl) {
-    const params = new URLSearchParams({
-      name:     record.name,
-      org:      record.org,
-      jobTitle: record.jobTitle,
-      phone:    record.phone || '',
-      idLast4:  record.idLast4 || '',
-      time:     record.time,
-      event:    record.event,
-    });
-    // 用 Image 送 GET 請求，無 CORS 問題，瀏覽器不會擋
-    new Image().src = CONFIG.scriptUrl + '?' + params.toString();
+    // 建立隱藏 iframe（畫面不跳頁）
+    let iframe = document.getElementById('_hiddenFrame');
+    if (!iframe) {
+      iframe = document.createElement('iframe');
+      iframe.id = '_hiddenFrame';
+      iframe.name = '_hiddenFrame';
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+    }
+    // 把全部資料（含簽名 base64）打包成 JSON，放進隱藏表單送出
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = CONFIG.scriptUrl;
+    form.target = '_hiddenFrame';
+    form.enctype = 'multipart/form-data';
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'data';
+    input.value = JSON.stringify(record);
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
   }
 
   showSuccess(record.name);
