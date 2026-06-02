@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>簽到管理後台</title>
+<style>
+:root {
+  --bg: #f0f4f8;
+  --card: #ffffff;
+  --accent: #4a9e78;
+  --accent-light: #d4ede2;
+  --warn: #d96060;
+  --text: #2d2420;
+  --text-mid: #5a6a7a;
+  --text-dim: #9aacbc;
+  --border: #e0e8f0;
+  --shadow: 0 2px 12px rgba(0,0,0,.08);
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Microsoft JhengHei', 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* HEADER */
+#header {
+  background: linear-gradient(135deg, #2d6a50, #4a9e78);
+  color: #fff; padding: 16px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  box-shadow: 0 3px 12px rgba(45,106,80,.3);
+}
+#header h1 { font-size: 1.2rem; font-weight: 700; }
+#header .sub { font-size: .8rem; opacity: .75; margin-top: 2px; }
+.header-btns { display: flex; gap: 10px; }
+.hdr-btn {
+  padding: 8px 16px; border-radius: 8px; border: 1.5px solid rgba(255,255,255,.4);
+  background: rgba(255,255,255,.15); color: #fff; font-size: .85rem;
+  cursor: pointer; font-family: inherit; transition: all .2s;
+}
+.hdr-btn:hover { background: rgba(255,255,255,.28); }
+.hdr-btn.danger { border-color: #ffaaaa; color: #ffd0d0; }
+.hdr-btn.danger:hover { background: rgba(220,80,80,.25); }
+
+/* STATS */
+#stats {
+  display: flex; gap: 12px; padding: 16px 20px; flex-wrap: wrap;
+}
+.stat-card {
+  flex: 1; min-width: 120px; background: var(--card);
+  border-radius: var(--radius); padding: 14px 18px;
+  box-shadow: var(--shadow); text-align: center;
+}
+.stat-num { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: .78rem; color: var(--text-mid); margin-top: 3px; }
+
+/* SEARCH */
+#searchBar {
+  margin: 0 20px 14px; display: flex; gap: 10px; align-items: center;
+}
+#searchInput {
+  flex: 1; padding: 10px 14px; border: 1.5px solid var(--border);
+  border-radius: 9px; font-size: .95rem; font-family: inherit;
+  background: var(--card); color: var(--text);
+}
+#searchInput:focus { outline: none; border-color: var(--accent); }
+
+/* TABLE */
+#tableWrap {
+  margin: 0 20px 20px; background: var(--card);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: hidden;
+}
+table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+thead { background: linear-gradient(90deg, #2d6a50, #4a9e78); color: #fff; }
+th { padding: 12px 14px; text-align: left; font-weight: 600; white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #f6faf8; }
+.sig-thumb { width: 80px; height: 36px; border: 1px solid var(--border); border-radius: 5px; object-fit: contain; background: #fafafa; cursor: pointer; }
+.sig-thumb:hover { border-color: var(--accent); }
+.no-data { text-align: center; padding: 40px; color: var(--text-dim); font-size: .95rem; }
+.idx-badge { display: inline-block; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: .75rem; font-weight: 700; text-align: center; line-height: 24px; }
+
+/* LIGHTBOX */
+#lightbox {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.65); z-index: 999;
+  align-items: center; justify-content: center;
+}
+#lightbox.show { display: flex; }
+#lightbox img { max-width: 90vw; max-height: 80vh; background: #fff; border-radius: 10px; padding: 12px; box-shadow: 0 8px 40px rgba(0,0,0,.4); }
+#lightbox .close-btn {
+  position: absolute; top: 20px; right: 20px;
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,.2); border: none; color: #fff;
+  font-size: 1.4rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+
+/* EMPTY */
+#emptyMsg { display: none; text-align: center; padding: 60px 20px; color: var(--text-dim); }
+#emptyMsg .icon { font-size: 3rem; margin-bottom: 12px; }
+
+/* EXPORT NOTICE */
+.export-note { font-size: .75rem; color: var(--text-dim); padding: 8px 20px 16px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <h1>📋 簽到管理後台</h1>
+    <div class="sub" id="hdrEventName"></div>
+  </div>
+  <div class="header-btns">
+    <button class="hdr-btn" onclick="exportCSV()">⬇ 匯出 CSV</button>
+    <button class="hdr-btn" onclick="printList()">🖨 列印名單</button>
+    <button class="hdr-btn danger" onclick="clearAll()">🗑 清除全部</button>
+  </div>
+</div>
+
+<div id="stats">
+  <div class="stat-card">
+    <div class="stat-num" id="statTotal">0</div>
+    <div class="stat-label">總簽到人數</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="statOrgs">0</div>
+    <div class="stat-label">單位數</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num" id="statLatest">—</div>
+    <div class="stat-label">最後簽到時間</div>
+  </div>
+</div>
+
+<div id="searchBar">
+  <input type="text" id="searchInput" placeholder="🔍 搜尋姓名 / 單位 / 職稱…" oninput="renderTable()">
+</div>
+
+<div id="tableWrap">
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>簽到時間</th>
+        <th>姓名</th>
+        <th>服務單位</th>
+        <th>職稱</th>
+        <th>電話</th>
+        <th>身分證後4碼</th>
+        <th>簽名</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <div class="no-data" id="noData" style="display:none">查無符合資料</div>
+</div>
+
+<div id="emptyMsg">
+  <div class="icon">📭</div>
+  <div>尚無簽到記錄</div>
+  <div style="font-size:.85rem;margin-top:8px;">請先由簽到頁面完成簽到</div>
+</div>
+
+<div class="export-note">* 簽名圖片不會包含在 CSV 匯出中，如需存檔請個別點擊放大後截圖</div>
+
+<!-- 簽名放大燈箱 -->
+<div id="lightbox" onclick="closeLightbox()">
+  <button class="close-btn" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt="簽名">
+</div>
+
+<script>
+let records = [];
+
+function load() {
+  records = JSON.parse(localStorage.getItem('signins') || '[]');
+  // 若有 CONFIG 的 eventName 就顯示
+  try {
+    const cfg = JSON.parse(localStorage.getItem('signinConfig') || '{}');
+    if (cfg.eventName) document.getElementById('hdrEventName').textContent = cfg.eventName;
+  } catch(e) {}
+  updateStats();
+  renderTable();
+  document.getElementById('tableWrap').style.display = records.length ? '' : 'none';
+  document.getElementById('emptyMsg').style.display = records.length ? 'none' : 'block';
+  document.getElementById('searchBar').style.display = records.length ? '' : 'none';
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = records.length;
+  const orgs = new Set(records.map(r => r.org)).size;
+  document.getElementById('statOrgs').textContent = orgs;
+  if (records.length) {
+    const last = records[records.length - 1].time;
+    document.getElementById('statLatest').textContent = last.split(' ')[1] || last;
+  }
+}
+
+function renderTable() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const filtered = records.filter(r =>
+    !q || [r.name, r.org, r.jobTitle].some(v => v && v.toLowerCase().includes(q))
+  );
+  const tbody = document.getElementById('tableBody');
+  const noData = document.getElementById('noData');
+  if (!filtered.length) {
+    tbody.innerHTML = '';
+    noData.style.display = 'block';
+    return;
+  }
+  noData.style.display = 'none';
+  tbody.innerHTML = filtered.map((r, i) => `
+    <tr>
+      <td><span class="idx-badge">${i + 1}</span></td>
+      <td style="white-space:nowrap;font-size:.8rem;color:#6b8090">${r.time}</td>
+      <td><strong>${esc(r.name)}</strong></td>
+      <td>${esc(r.org)}</td>
+      <td>${esc(r.jobTitle)}</td>
+      <td>${esc(r.phone || '—')}</td>
+      <td>${esc(r.idLast4 || '—')}</td>
+      <td>${r.signature ? `<img class="sig-thumb" src="${r.signature}" alt="簽名" onclick="openLightbox('${r.signature}')">` : '—'}</td>
+    </tr>`).join('');
+}
+
+function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('show');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.remove('show'); }
+
+function exportCSV() {
+  if (!records.length) { alert('尚無資料可匯出'); return; }
+  const headers = ['#', '簽到時間', '姓名', '服務單位', '職稱', '聯絡電話', '身分證後4碼'];
+  const rows = records.map((r, i) => [i+1, r.time, r.name, r.org, r.jobTitle, r.phone||'', r.idLast4||''].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+  const csv = '﻿' + [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `簽到名單_${new Date().toLocaleDateString('zh-TW')}.csv`;
+  a.click();
+}
+
+function printList() {
+  window.print();
+}
+
+function clearAll() {
+  if (!confirm(`確定要清除全部 ${records.length} 筆簽到記錄？\n此操作無法還原！`)) return;
+  localStorage.removeItem('signins');
+  records = [];
+  load();
+}
+
+load();
+
+// 每 10 秒自動刷新（讓簽到即時顯示）
+setInterval(load, 10000);
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+</script>
+</body>
+</html>
