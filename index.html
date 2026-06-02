@@ -259,14 +259,33 @@ body {
   <div class="countdown" id="countdown"></div>
 </div>
 
-<script>
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.8.1/firebase-app.js';
+import { getFirestore, collection, addDoc } from 'https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore.js';
+
+// ── Firebase 設定 ──
+const firebaseConfig = {
+  apiKey: "AIzaSyCmhvbgPnnNOCTJ6xPXuFCO37o0LIFwrtA",
+  authDomain: "signinsystem2026.firebaseapp.com",
+  projectId: "signinsystem2026",
+  storageBucket: "signinsystem2026.firebasestorage.app",
+  messagingSenderId: "331926593930",
+  appId: "1:331926593930:web:a1788e67d8c52334432873"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+window._db = db;
+window._fsCollection = collection;
+window._fsAddDoc = addDoc;
+
 // ── 活動設定（可直接修改這裡）──
 const CONFIG = {
   eventName: '照顧服務員術科培訓研討會',
   eventDate: '2026年6月2日',
-  // 上線後換成 Google Apps Script 的 URL，本機測試留空即可
   scriptUrl: 'https://script.google.com/macros/s/AKfycbzRhAY3Py9gLV5yUF_TpRxo7jTs-yPnfHUnnM4CSmmrcmDNMw4GfxEeR2E7t_8PjacU/exec',
 };
+window._CONFIG = CONFIG;
 
 // ── 初始化 ──
 document.getElementById('eventTitle').textContent = CONFIG.eventName;
@@ -368,6 +387,7 @@ async function submitForm() {
   btn.disabled = true;
   btn.textContent = '送出中…';
 
+  const CONFIG = window._CONFIG;
   const record = {
     time: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
     name: document.getElementById('fName').value.trim(),
@@ -379,12 +399,25 @@ async function submitForm() {
     event: CONFIG.eventName,
   };
 
-  // 本機儲存（測試用）
+  // 本機儲存
   const records = JSON.parse(localStorage.getItem('signins') || '[]');
   records.push(record);
   localStorage.setItem('signins', JSON.stringify(records));
 
-  // 送到 Google Apps Script（GET 請求，文字欄位即時寫入 Sheets）
+  // 1. 把簽名存進 Firestore，取得 docId
+  let sigDocId = '';
+  try {
+    const db = window._db;
+    const col = window._fsCollection(db, 'signatures');
+    const docRef = await window._fsAddDoc(col, {
+      name: record.name,
+      time: record.time,
+      signature: record.signature,
+    });
+    sigDocId = docRef.id;
+  } catch(err) { console.warn('Firestore 儲存失敗', err); }
+
+  // 2. 文字欄位 + sigDocId 寫入 Google Sheets
   if (CONFIG.scriptUrl) {
     const params = new URLSearchParams({
       name:     record.name,
@@ -394,6 +427,7 @@ async function submitForm() {
       idLast4:  record.idLast4 || '',
       time:     record.time,
       event:    record.event,
+      sigDocId: sigDocId,
     });
     new Image().src = CONFIG.scriptUrl + '?' + params.toString();
   }
@@ -429,6 +463,10 @@ function resetForm() {
   document.querySelectorAll('.err-msg').forEach(el => el.classList.remove('show'));
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// module 外的函式需掛在 window 上供 HTML onclick 呼叫
+window.submitForm = submitForm;
+window.clearSig = clearSig;
 </script>
 </body>
 </html>
