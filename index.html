@@ -439,7 +439,7 @@ async function submitForm() {
 function showSuccess(name) {
   document.getElementById('successName').textContent = name + ' 已完成簽到';
   document.getElementById('successScreen').classList.add('show');
-  let sec = 5;
+  let sec = 3;
   const cd = document.getElementById('countdown');
   cd.textContent = `${sec} 秒後自動清除，供下一位使用`;
   const t = setInterval(() => {
