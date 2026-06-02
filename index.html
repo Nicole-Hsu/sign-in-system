@@ -390,7 +390,6 @@ async function submitForm() {
       await fetch(CONFIG.scriptUrl, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(record),
       });
     } catch(e) { console.warn('送出失敗，已儲存於本機', e); }
